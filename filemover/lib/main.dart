@@ -1,24 +1,59 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'languages.dart';
 import 'migration_service.dart';
 
-void main() => runApp(MyApp(service: WindowsMigrationService()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final languages = await AppLanguages.load(
+    store: WindowsLanguageStore(),
+    systemLocale: WidgetsBinding.instance.platformDispatcher.locale
+        .toLanguageTag(),
+  );
+  runApp(MyApp(service: WindowsMigrationService(), languages: languages));
+}
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.service});
+class MyApp extends StatefulWidget {
+  const MyApp({super.key, required this.service, this.languages});
   final MigrationService service;
+  final AppLanguages? languages;
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'FileMover',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff245b50)),
-      scaffoldBackgroundColor: const Color(0xfff5f7f6),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final AppLanguages languages =
+      widget.languages ?? AppLanguages.english();
+  @override
+  void dispose() {
+    if (widget.languages == null) languages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: languages,
+    builder: (context, _) => MaterialApp(
+      title: 'FileMover',
+      locale: languages.frameworkLocale,
+      supportedLocales: [languages.frameworkLocale],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      builder: (context, child) => Directionality(
+        textDirection: languages.current.direction == 'rtl'
+            ? TextDirection.rtl
+            : TextDirection.ltr,
+        child: child!,
       ),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff245b50)),
+        scaffoldBackgroundColor: const Color(0xfff5f7f6),
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+        ),
+      ),
+      home: MigrationPage(service: widget.service, languages: languages),
     ),
-    home: MigrationPage(service: service),
   );
 }
 
@@ -34,13 +69,82 @@ String bytes(num value) {
 }
 
 class MigrationPage extends StatefulWidget {
-  const MigrationPage({super.key, required this.service});
+  const MigrationPage({
+    super.key,
+    required this.service,
+    required this.languages,
+  });
   final MigrationService service;
+  final AppLanguages languages;
   @override
   State<MigrationPage> createState() => _MigrationPageState();
 }
 
 class _MigrationPageState extends State<MigrationPage> {
+  String t(String source, [Map<String, Object> values = const {}]) =>
+      widget.languages.text(source, values);
+  bool _languageBusy = false;
+
+  Future<void> _languageAction(String value) async {
+    setState(() {
+      _languageBusy = true;
+    });
+    try {
+      if (value == 'import') {
+        final source = await widget.languages.store.pickJson();
+        if (source != null) await widget.languages.importJson(source);
+      } else {
+        await widget.languages.select(value.substring(7));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _message = e.toString();
+          _error = true;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _languageBusy = false;
+        });
+      }
+    }
+  }
+
+  Widget _diagnostic(String raw) {
+    final message = raw.startsWith('FormatException: ')
+        ? raw.substring(17)
+        : raw.trimLeft();
+    final candidates =
+        widget.languages.messageKeys
+            .where((key) => message.startsWith(key))
+            .toList()
+          ..sort((a, b) => b.length.compareTo(a.length));
+    final summary = candidates.isNotEmpty
+        ? t(candidates.first)
+        : widget.languages.selected == 'en'
+        ? raw
+        : t('Operation failed. Review the original details below.');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SelectableText(summary),
+        if (summary != raw)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(t('Original diagnostic details')),
+            children: [
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: SelectableText(raw),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
   final _source = TextEditingController(), _parent = TextEditingController();
   List<JsonMap> _history = [];
   JsonMap? _review, _progress;
@@ -145,7 +249,7 @@ class _MigrationPageState extends State<MigrationPage> {
           builder: (context) => StatefulBuilder(
             builder: (context, update) => AlertDialog(
               title: Text(
-                undo ? 'Double-check undo' : 'Double-check migration',
+                undo ? t('Double-check undo') : t('Double-check migration'),
               ),
               content: SizedBox(
                 width: 560,
@@ -156,29 +260,37 @@ class _MigrationPageState extends State<MigrationPage> {
                     children: [
                       Text(
                         undo
-                            ? 'Move the current data back to the original location and remove the junction.'
-                            : 'Move this folder to the destination and leave a junction at the original path.',
+                            ? t(
+                                'Move the current data back to the original location and remove the junction.',
+                              )
+                            : t(
+                                'Move this folder to the destination and leave a junction at the original path.',
+                              ),
                       ),
                       const SizedBox(height: 20),
-                      _detail('From', review['source'].toString()),
+                      _detail(t('From'), review['source'].toString()),
                       _detail(
-                        'To',
+                        t('To'),
                         original ?? review['destination'].toString(),
                       ),
                       _detail(
-                        'Data / space required',
+                        t('Data / space required'),
                         '${bytes(review['bytes'] as num)} / ${bytes(review['required'] as num)}',
                       ),
-                      const Text(
-                        'Every file is checked with SHA-256 before switching locations. Keep applications closed until this finishes.',
+                      Text(
+                        t(
+                          'Every file is checked with SHA-256 before switching locations. Keep applications closed until this finishes.',
+                        ),
                       ),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
                         value: acknowledged,
                         onChanged: (value) =>
                             update(() => acknowledged = value ?? false),
-                        title: const Text(
-                          'I checked both paths and closed applications using this folder.',
+                        title: Text(
+                          t(
+                            'I checked both paths and closed applications using this folder.',
+                          ),
                         ),
                       ),
                     ],
@@ -188,13 +300,15 @@ class _MigrationPageState extends State<MigrationPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
+                  child: Text(t('Cancel')),
                 ),
                 FilledButton(
                   onPressed: acknowledged
                       ? () => Navigator.pop(context, true)
                       : null,
-                  child: Text(undo ? 'Confirm and undo' : 'Confirm and move'),
+                  child: Text(
+                    undo ? t('Confirm and undo') : t('Confirm and move'),
+                  ),
                 ),
               ],
             ),
@@ -277,6 +391,13 @@ class _MigrationPageState extends State<MigrationPage> {
       ],
     ),
   );
+  String _date(String raw) {
+    final date = DateTime.tryParse(raw)?.toLocal();
+    if (date == null) return raw;
+    final localizations = MaterialLocalizations.of(context);
+    return '${localizations.formatMediumDate(date)} ${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(date), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context))}';
+  }
+
   Widget _folder(String label, TextEditingController controller) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: Row(
@@ -284,7 +405,7 @@ class _MigrationPageState extends State<MigrationPage> {
         Expanded(
           child: TextField(
             controller: controller,
-            enabled: !_busy && !_pending,
+            enabled: !_busy && !_languageBusy && !_pending,
             onChanged: (_) => setState(() {
               _review = null;
             }),
@@ -293,8 +414,10 @@ class _MigrationPageState extends State<MigrationPage> {
         ),
         const SizedBox(width: 12),
         IconButton.filledTonal(
-          tooltip: 'Browse $label',
-          onPressed: _busy || _pending ? null : () => _pick(controller),
+          tooltip: t('Browse {label}', {'label': label}),
+          onPressed: _busy || _languageBusy || _pending
+              ? null
+              : () => _pick(controller),
           icon: const Icon(Icons.folder_open),
         ),
       ],
@@ -306,10 +429,30 @@ class _MigrationPageState extends State<MigrationPage> {
     appBar: AppBar(
       title: const Text('FileMover'),
       actions: [
+        PopupMenuButton<String>(
+          key: const ValueKey('language-menu'),
+          tooltip: '${t('Language')} · ${widget.languages.current.name}',
+          enabled: !_busy && !_languageBusy,
+          icon: const Icon(Icons.language),
+          onSelected: _languageAction,
+          itemBuilder: (context) => [
+            for (final pack in widget.languages.packs.values)
+              CheckedPopupMenuItem(
+                value: 'locale:${pack.locale}',
+                checked: widget.languages.selected == pack.locale,
+                child: Text(pack.name),
+              ),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'import',
+              child: Text(t('Import language JSON…')),
+            ),
+          ],
+        ),
         TextButton.icon(
-          onPressed: _busy ? null : _refresh,
+          onPressed: _busy || _languageBusy ? null : _refresh,
           icon: const Icon(Icons.refresh),
-          label: const Text('Refresh history'),
+          label: Text(t('Refresh history')),
         ),
         const SizedBox(width: 16),
       ],
@@ -321,21 +464,30 @@ class _MigrationPageState extends State<MigrationPage> {
         child: ListView(
           padding: const EdgeInsets.all(28),
           children: [
+            if (widget.languages.loadWarning != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(t(widget.languages.loadWarning!)),
+              ),
             Text(
-              'Move the data. Keep the path.',
+              t('Move the data. Keep the path.'),
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Safely relocate a Windows folder and leave a junction at its original location. Local NTFS drives only.',
+            Text(
+              t(
+                'Safely relocate a Windows folder and leave a junction at its original location. Local NTFS drives only.',
+              ),
             ),
             const SizedBox(height: 24),
             if (_pending)
-              const Card(
+              Card(
                 child: Padding(
-                  padding: EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
                   child: Text(
-                    'An operation needs recovery or cleanup. Resolve it in History before starting another move.',
+                    t(
+                      'An operation needs recovery or cleanup. Resolve it in History before starting another move.',
+                    ),
                   ),
                 ),
               ),
@@ -345,10 +497,12 @@ class _MigrationPageState extends State<MigrationPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _folder('Source folder', _source),
-                    _folder('Destination parent folder', _parent),
-                    const Text(
-                      'The destination will contain a folder with the same name. Existing folders are never overwritten.',
+                    _folder(t('Source folder'), _source),
+                    _folder(t('Destination parent folder'), _parent),
+                    Text(
+                      t(
+                        'The destination will contain a folder with the same name. Existing folders are never overwritten.',
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Wrap(
@@ -358,38 +512,51 @@ class _MigrationPageState extends State<MigrationPage> {
                         OutlinedButton.icon(
                           onPressed:
                               _busy ||
+                                  _languageBusy ||
                                   _pending ||
                                   _source.text.trim().isEmpty ||
                                   _parent.text.trim().isEmpty
                               ? null
                               : _check,
                           icon: const Icon(Icons.fact_check_outlined),
-                          label: const Text('Check folders'),
+                          label: Text(t('Check folders')),
                         ),
                         FilledButton.icon(
-                          onPressed: _busy || _pending || _review == null
+                          onPressed:
+                              _busy ||
+                                  _languageBusy ||
+                                  _pending ||
+                                  _review == null
                               ? null
                               : _move,
                           icon: const Icon(Icons.drive_file_move_outline),
-                          label: const Text('Apply move'),
+                          label: Text(t('Apply move')),
                         ),
                       ],
                     ),
                     if (_review != null) ...[
                       const Divider(height: 32),
                       _detail(
-                        'Verified destination path',
+                        t('Verified destination path'),
                         _review!['destination'] as String,
                       ),
                       Text(
-                        '${_review!['files']} files · ${bytes(_review!['bytes'] as num)} of data',
+                        t('{count} files · {size} of data', {
+                          'count': _review!['files'] as Object,
+                          'size': bytes(_review!['bytes'] as num),
+                        }),
                       ),
                       Text(
-                        '${bytes(_review!['required'] as num)} required · ${bytes(_review!['free'] as num)} available',
+                        t('{required} required · {free} available', {
+                          'required': bytes(_review!['required'] as num),
+                          'free': bytes(_review!['free'] as num),
+                        }),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Checks passed. Apply move opens a final confirmation. Checks run again before moving data.',
+                      Text(
+                        t(
+                          'Checks passed. Apply move opens a final confirmation. Checks run again before moving data.',
+                        ),
                       ),
                     ],
                   ],
@@ -404,7 +571,10 @@ class _MigrationPageState extends State<MigrationPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _progress?['phase'] as String? ?? 'Checking operation…',
+                        t(
+                          _progress?['phase'] as String? ??
+                              'Checking operation…',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       const LinearProgressIndicator(),
@@ -441,8 +611,8 @@ class _MigrationPageState extends State<MigrationPage> {
                                 },
                           child: Text(
                             _cancelRequested
-                                ? 'Cancellation requested…'
-                                : 'Cancel safely',
+                                ? t('Cancellation requested…')
+                                : t('Cancel safely'),
                           ),
                         ),
                     ],
@@ -456,23 +626,29 @@ class _MigrationPageState extends State<MigrationPage> {
                     : Theme.of(context).colorScheme.secondaryContainer,
                 child: Padding(
                   padding: const EdgeInsets.all(20),
-                  child: SelectableText(_message!),
+                  child: _error
+                      ? _diagnostic(_message!)
+                      : SelectableText(t(_message!)),
                 ),
               ),
             const SizedBox(height: 28),
             Text(
-              'History & recovery',
+              t('History & recovery'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
             if (_history.isEmpty)
-              const Text(
-                'Migrations appear here. Interrupted operations can be recovered after restarting FileMover.',
+              Text(
+                t(
+                  'Migrations appear here. Interrupted operations can be recovered after restarting FileMover.',
+                ),
               ),
             for (final record in _history) _historyCard(record),
             const SizedBox(height: 24),
-            const Text(
-              'Close applications using the folder. Live databases, system folders, network locations, encrypted files, and folders containing links are unsupported.',
+            Text(
+              t(
+                'Close applications using the folder. Live databases, system folders, network locations, encrypted files, and folders containing links are unsupported.',
+              ),
             ),
           ],
         ),
@@ -485,11 +661,11 @@ class _MigrationPageState extends State<MigrationPage> {
     final pending = !['complete', 'undone', 'rolledBack'].contains(state);
     final cleanup = ['committed', 'cleanupPending'].contains(state);
     final labels = {
-      'complete': 'Completed',
-      'undone': 'Undone',
-      'rolledBack': 'Original location restored',
-      'committed': 'Verified · cleanup pending',
-      'cleanupPending': 'Verified · cleanup pending',
+      'complete': t('Completed'),
+      'undone': t('Undone'),
+      'rolledBack': t('Original location restored'),
+      'committed': t('Verified · cleanup pending'),
+      'cleanupPending': t('Verified · cleanup pending'),
     };
     return Card(
       child: Padding(
@@ -498,32 +674,39 @@ class _MigrationPageState extends State<MigrationPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${r['direction'] == 'undo' ? 'Undo' : 'Migration'} · ${labels[state] ?? 'Recovery required'}',
+              t('{operation} · {status}', {
+                'operation': r['direction'] == 'undo'
+                    ? t('Undo')
+                    : t('Migration'),
+                'status': labels[state] ?? t('Recovery required'),
+              }),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            _detail('Original path', r['source'] as String),
-            _detail('Destination', r['destination'] as String),
-            Text(r['started'] as String? ?? ''),
+            _detail(t('Original path'), r['source'] as String),
+            _detail(t('Destination'), r['destination'] as String),
+            Text(_date(r['started'] as String? ?? '')),
             if ((r['message'] as String? ?? '').isNotEmpty)
-              SelectableText(r['message'] as String),
+              _diagnostic(r['message'] as String),
             if (pending || state == 'rolledBack') ...[
               if (r['backup'] != null)
-                _detail('Backup path', r['backup'] as String),
+                _detail(t('Backup path'), r['backup'] as String),
               if (r['stage'] != null)
-                _detail('Staging path', r['stage'] as String),
+                _detail(t('Staging path'), r['stage'] as String),
             ],
             if (pending)
               FilledButton.tonal(
                 onPressed: _busy ? null : () => _recover(r),
                 child: Text(
-                  cleanup ? 'Retry cleanup' : 'Recover original location',
+                  cleanup ? t('Retry cleanup') : t('Recover original location'),
                 ),
               ),
             if (r['direction'] == 'move' && state == 'complete')
               OutlinedButton(
-                onPressed: _busy || _pending ? null : () => _undo(r),
-                child: const Text('Undo migration'),
+                onPressed: _busy || _languageBusy || _pending
+                    ? null
+                    : () => _undo(r),
+                child: Text(t('Undo migration')),
               ),
           ],
         ),
