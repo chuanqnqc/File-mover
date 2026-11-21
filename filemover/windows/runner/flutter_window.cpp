@@ -31,19 +31,13 @@ bool FlutterWindow::OnCreate() {
       flutter_controller_->engine()->messenger(), "filemover/folders",
       &flutter::StandardMethodCodec::GetInstance());
   folder_channel_->SetMethodCallHandler([this](const auto& call, auto result) {
-    const bool language_file = call.method_name() == "pickLanguageFile";
-    if (call.method_name() != "pickFolder" && !language_file) { result->NotImplemented(); return; }
+    if (call.method_name() != "pickFolder") { result->NotImplemented(); return; }
     IFileOpenDialog* dialog = nullptr;
     HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
     if (FAILED(hr)) { result->Error("picker", "Could not open folder picker."); return; }
     DWORD options = 0;
     hr = dialog->GetOptions(&options);
-    if (SUCCEEDED(hr)) hr = dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST |
-        (language_file ? FOS_FILEMUSTEXIST : FOS_PICKFOLDERS));
-    if (SUCCEEDED(hr) && language_file) {
-      const COMDLG_FILTERSPEC filters[] = {{L"JSON (*.json)", L"*.json"}};
-      hr = dialog->SetFileTypes(1, filters);
-    }
+    if (SUCCEEDED(hr)) hr = dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
     if (SUCCEEDED(hr)) hr = dialog->Show(GetHandle());
     if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) { dialog->Release(); result->Success(); return; }
     IShellItem* item = nullptr;

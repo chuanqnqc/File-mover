@@ -39,41 +39,10 @@ On first launch, Chinese Windows locales use Simplified Chinese; other locales
 use English. Your choice is saved. Dates and standard widget controls use the
 selected locale where Flutter supports it.
 
-Choose **Import language JSON…** in the same menu to add another language or
-override an existing one. A valid import is selected immediately and saved for
-future launches. Invalid imports keep the current language unchanged.
-
-Use [the complete English template](assets/languages/en.json) as a starting point,
-or supply a partial UTF-8 JSON file like this:
-
-```json
-{
-  "schemaVersion": 1,
-  "locale": "fr",
-  "name": "Français",
-  "direction": "ltr",
-  "messages": {
-    "Source folder": "Dossier source",
-    "Destination parent folder": "Dossier parent de destination",
-    "Apply move": "Déplacer",
-    "Browse {label}": "Parcourir : {label}"
-  }
-}
-```
-
-Message keys are the exact English source phrases from the template. Translate
-the values and preserve named placeholders such as `{label}`. Unknown keys,
-non-string or empty translations, and mismatched placeholders are rejected.
-Use a locale such as `fr`, `de-DE`, `zh-Hant`, or `ar`, a display name, and `ltr`
-or `rtl` for text direction. Files are limited to 1 MiB and 20 imported packs.
-Missing translations use the built-in language when overriding it, otherwise
-English. Unsupported framework locales still display your imported text, with
-English standard widget controls.
-
-Settings and imported packs are stored in
-`%LOCALAPPDATA%\FileMover\languages.json`. Native errors have translated summaries;
-expand **Original diagnostic details** to see the unchanged Windows/worker
-diagnostics and paths. Imported packs are text data and never execute code.
+Translations are bundled with the app. To add a language in the source code,
+use `lib/l10n/app_en.arb` as the template for a new locale, keep the message
+keys and placeholders, and run `flutter gen-l10n`. Add the language's name
+to the selector in `lib/languages.dart` and rebuild.
 
 ## Supported limits
 

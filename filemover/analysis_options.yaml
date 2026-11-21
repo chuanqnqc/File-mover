@@ -11,6 +11,8 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
+    # Flutter 3.50 generates a delegate list with legacy Material and Cupertino types.
+    - lib/l10n/generated/**
     - build/**
     - windows/**
 

@@ -1,0 +1,140 @@
+{
+  "@@locale": "en",
+  "operationFailedReviewTheOriginal": "Operation failed. Review the original details below.",
+  "refreshHistory": "Refresh history",
+  "heading": "Move the data. Keep the path.",
+  "intro": "Safely relocate a Windows folder and leave a junction at its original location. Local NTFS drives only.",
+  "anOperationNeedsRecoveryOrCleanup": "An operation needs recovery or cleanup. Resolve it in History before starting another move.",
+  "sourceFolder": "Source folder",
+  "destinationParentFolder": "Destination parent folder",
+  "theDestinationWillContainAFolder": "The destination will contain a folder with the same name. Existing folders are never overwritten.",
+  "checkFolders": "Check folders",
+  "applyMove": "Apply move",
+  "verifiedDestinationPath": "Verified destination path",
+  "checksPassedApplyMoveOpensA": "Checks passed. Apply move opens a final confirmation. Checks run again before moving data.",
+  "checkingOperation": "Checking operation…",
+  "cancellationRequested": "Cancellation requested…",
+  "cancelSafely": "Cancel safely",
+  "historyRecovery": "History & recovery",
+  "migrationsAppearHereInterruptedOperationsCan": "Migrations appear here. Interrupted operations can be recovered after restarting FileMover.",
+  "closeApplicationsUsingTheFolderLive": "Close applications using the folder. Live databases, system folders, network locations, encrypted files, and folders containing links are unsupported.",
+  "doubleCheckUndo": "Double-check undo",
+  "doubleCheckMigration": "Double-check migration",
+  "moveTheCurrentDataBackTo": "Move the current data back to the original location and remove the junction.",
+  "moveThisFolderToTheDestination": "Move this folder to the destination and leave a junction at the original path.",
+  "from": "From",
+  "to": "To",
+  "dataSpaceRequired": "Data / space required",
+  "everyFileIsCheckedWithSha": "Every file is checked with SHA-256 before switching locations. Keep applications closed until this finishes.",
+  "iCheckedBothPathsAndClosed": "I checked both paths and closed applications using this folder.",
+  "cancel": "Cancel",
+  "confirmAndUndo": "Confirm and undo",
+  "confirmAndMove": "Confirm and move",
+  "migrationVerifiedTheOriginalPathNow": "Migration verified. The original path now points to the destination.",
+  "undoVerifiedYourCurrentDataIs": "Undo verified. Your current data is back at the original location.",
+  "recoveryCompletedReviewTheOperationDetails": "Recovery completed. Review the operation details below.",
+  "completed": "Completed",
+  "undone": "Undone",
+  "originalLocationRestored": "Original location restored",
+  "verifiedCleanupPending": "Verified · cleanup pending",
+  "recoveryRequired": "Recovery required",
+  "undo": "Undo",
+  "migration": "Migration",
+  "originalPath": "Original path",
+  "destination": "Destination",
+  "backupPath": "Backup path",
+  "stagingPath": "Staging path",
+  "retryCleanup": "Retry cleanup",
+  "recoverOriginalLocation": "Recover original location",
+  "undoMigration": "Undo migration",
+  "browseFolder": "Browse {label}",
+  "@browseFolder": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "fileSummary": "{count} files · {size} of data",
+  "@fileSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "spaceSummary": "{required} required · {free} available",
+  "@spaceSummary": {
+    "placeholders": {
+      "required": {
+        "type": "String"
+      },
+      "free": {
+        "type": "String"
+      }
+    }
+  },
+  "operationStatus": "{operation} · {status}",
+  "@operationStatus": {
+    "placeholders": {
+      "operation": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "language": "Language",
+  "originalDiagnosticDetails": "Original diagnostic details",
+  "languageSettingsWarning": "Saved language settings could not be loaded. Built-in languages are available.",
+  "verifying": "Verifying",
+  "copying": "Copying",
+  "recovering": "Recovering",
+  "switchingLocations": "Switching locations",
+  "cleaningUp": "Cleaning up",
+  "cancelledRestoringTheOriginalFolder": "Cancelled. Restoring the original folder.",
+  "anotherFilemoverOperationIsRunningWait": "Another FileMover operation is running. Wait for it to finish.",
+  "resolveThePendingRecoveryOrCleanup": "Resolve the pending recovery or cleanup in History before starting another migration.",
+  "chooseAnAbsoluteLocalFolderPath": "Choose an absolute local folder path.",
+  "driveRootsAndAlternateStreamPaths": "Drive roots and alternate stream paths cannot be migrated.",
+  "linksAndMountedFoldersAreUnsupported": "Links and mounted folders are unsupported:",
+  "systemApplicationAndFilemoverDataFolders": "System, application, and FileMover data folders cannot be migrated:",
+  "userProfileRootsCannotBeMigrated": "User profile roots cannot be migrated.",
+  "protectedDirectory": "Protected directory:",
+  "bothSelectedFoldersMustExist": "Both selected folders must exist.",
+  "sourceAndFinalDestinationMustBe": "Source and final destination must be separate, non-overlapping folders.",
+  "theFinalDestinationAlreadyExists": "The final destination already exists:",
+  "onlyFixedLocalNtfsVolumesAre": "Only fixed local NTFS volumes are supported in this version.",
+  "aPathIsTooLongFor": "A path is too long for this version's Windows worker. Shorten the source/destination paths before migrating.",
+  "insufficientDiskSpace": "Insufficient disk space",
+  "reparsePointsAreUnsupported": "Reparse points are unsupported:",
+  "encryptedFilesAreUnsupported": "Encrypted files are unsupported:",
+  "multiplyLinkedFilesAreUnsupported": "Multiply linked files are unsupported:",
+  "verificationFailedFileInventoryContentsStreams": "Verification failed: file inventory, contents, streams, permissions, attributes, or timestamps differ. Original data has been retained.",
+  "folderChangedAReparsePointAppeared": "Folder changed: a reparse point appeared:",
+  "onlyACompletedMigrationCanBe": "Only a completed migration can be undone.",
+  "theOriginalJunctionOrDestinationHas": "The original junction or destination has changed. Undo stopped to preserve data.",
+  "junctionTargetVerificationFailed": "Junction target verification failed.",
+  "restoredDirectoryIdentityMismatch": "Restored directory identity mismatch.",
+  "junctionChangedDuringVerification": "Junction changed during verification.",
+  "accessThroughJunctionDidNotReach": "Access through junction did not reach the destination.",
+  "directoryIdentityChangedKeeping": "Directory identity changed; keeping",
+  "unexpectedLinkRefusingCleanup": "Unexpected link; refusing cleanup:",
+  "thisOperationIsNotReadyFor": "This operation is not ready for cleanup.",
+  "destinationOrJunctionChangedBackupRetained": "Destination or junction changed. Backup retained.",
+  "restoredSourceChangedDestinationRetained": "Restored source changed. Destination retained.",
+  "originalBackupCannotBeIdentified": "Original backup cannot be identified:",
+  "originalPathIsOccupiedByAn": "Original path is occupied by an unexpected directory:",
+  "originalFolderRestoredAnyStagingDestination": "Original folder restored. Any staging/destination copy is retained for inspection.",
+  "undoDestinationCannotBeIdentifiedAll": "Undo destination cannot be identified. All data retained.",
+  "originalPathIsOccupiedCannotRestore": "Original path is occupied. Cannot restore junction.",
+  "junctionRestoredAnyStagingCopyIs": "Junction restored. Any staging copy is retained for inspection.",
+  "unexpectedLink": "Unexpected link:",
+  "migrationCancelled": "Migration cancelled.",
+  "junctionPathIsOccupied": "Junction path is occupied:",
+  "unexpectedJunctionTarget": "Unexpected junction target:"
+}

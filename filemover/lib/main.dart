@@ -1,6 +1,10 @@
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:material_ui/material_ui.dart';
 
 import 'languages.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'localized_diagnostics.dart';
 import 'migration_service.dart';
 
 Future<void> main() async {
@@ -35,15 +39,13 @@ class _MyAppState extends State<MyApp> {
     listenable: languages,
     builder: (context, _) => MaterialApp(
       title: 'FileMover',
-      locale: languages.frameworkLocale,
-      supportedLocales: [languages.frameworkLocale],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      builder: (context, child) => Directionality(
-        textDirection: languages.current.direction == 'rtl'
-            ? TextDirection.rtl
-            : TextDirection.ltr,
-        child: child!,
-      ),
+      locale: languages.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: [
+        AppLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        ...GlobalMaterialLocalizations.delegates,
+      ],
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff245b50)),
@@ -81,8 +83,7 @@ class MigrationPage extends StatefulWidget {
 }
 
 class _MigrationPageState extends State<MigrationPage> {
-  String t(String source, [Map<String, Object> values = const {}]) =>
-      widget.languages.text(source, values);
+  AppLocalizations get l10n => AppLocalizations.of(context);
   bool _languageBusy = false;
 
   Future<void> _languageAction(String value) async {
@@ -90,12 +91,7 @@ class _MigrationPageState extends State<MigrationPage> {
       _languageBusy = true;
     });
     try {
-      if (value == 'import') {
-        final source = await widget.languages.store.pickJson();
-        if (source != null) await widget.languages.importJson(source);
-      } else {
-        await widget.languages.select(value.substring(7));
-      }
+      await widget.languages.select(value);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -113,19 +109,11 @@ class _MigrationPageState extends State<MigrationPage> {
   }
 
   Widget _diagnostic(String raw) {
-    final message = raw.startsWith('FormatException: ')
-        ? raw.substring(17)
-        : raw.trimLeft();
-    final candidates =
-        widget.languages.messageKeys
-            .where((key) => message.startsWith(key))
-            .toList()
-          ..sort((a, b) => b.length.compareTo(a.length));
-    final summary = candidates.isNotEmpty
-        ? t(candidates.first)
-        : widget.languages.selected == 'en'
-        ? raw
-        : t('Operation failed. Review the original details below.');
+    final summary =
+        localizedDiagnostic(raw, l10n) ??
+        (widget.languages.selected == 'en'
+            ? raw
+            : l10n.operationFailedReviewTheOriginal);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -133,7 +121,7 @@ class _MigrationPageState extends State<MigrationPage> {
         if (summary != raw)
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text(t('Original diagnostic details')),
+            title: Text(l10n.originalDiagnosticDetails),
             children: [
               Align(
                 alignment: AlignmentDirectional.centerStart,
@@ -249,7 +237,7 @@ class _MigrationPageState extends State<MigrationPage> {
           builder: (context) => StatefulBuilder(
             builder: (context, update) => AlertDialog(
               title: Text(
-                undo ? t('Double-check undo') : t('Double-check migration'),
+                undo ? l10n.doubleCheckUndo : l10n.doubleCheckMigration,
               ),
               content: SizedBox(
                 width: 560,
@@ -260,38 +248,26 @@ class _MigrationPageState extends State<MigrationPage> {
                     children: [
                       Text(
                         undo
-                            ? t(
-                                'Move the current data back to the original location and remove the junction.',
-                              )
-                            : t(
-                                'Move this folder to the destination and leave a junction at the original path.',
-                              ),
+                            ? l10n.moveTheCurrentDataBackTo
+                            : l10n.moveThisFolderToTheDestination,
                       ),
                       const SizedBox(height: 20),
-                      _detail(t('From'), review['source'].toString()),
+                      _detail(l10n.from, review['source'].toString()),
                       _detail(
-                        t('To'),
+                        l10n.to,
                         original ?? review['destination'].toString(),
                       ),
                       _detail(
-                        t('Data / space required'),
+                        l10n.dataSpaceRequired,
                         '${bytes(review['bytes'] as num)} / ${bytes(review['required'] as num)}',
                       ),
-                      Text(
-                        t(
-                          'Every file is checked with SHA-256 before switching locations. Keep applications closed until this finishes.',
-                        ),
-                      ),
+                      Text(l10n.everyFileIsCheckedWithSha),
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
                         value: acknowledged,
                         onChanged: (value) =>
                             update(() => acknowledged = value ?? false),
-                        title: Text(
-                          t(
-                            'I checked both paths and closed applications using this folder.',
-                          ),
-                        ),
+                        title: Text(l10n.iCheckedBothPathsAndClosed),
                       ),
                     ],
                   ),
@@ -300,15 +276,13 @@ class _MigrationPageState extends State<MigrationPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text(t('Cancel')),
+                  child: Text(l10n.cancel),
                 ),
                 FilledButton(
                   onPressed: acknowledged
                       ? () => Navigator.pop(context, true)
                       : null,
-                  child: Text(
-                    undo ? t('Confirm and undo') : t('Confirm and move'),
-                  ),
+                  child: Text(undo ? l10n.confirmAndUndo : l10n.confirmAndMove),
                 ),
               ],
             ),
@@ -414,7 +388,7 @@ class _MigrationPageState extends State<MigrationPage> {
         ),
         const SizedBox(width: 12),
         IconButton.filledTonal(
-          tooltip: t('Browse {label}', {'label': label}),
+          tooltip: l10n.browseFolder(label),
           onPressed: _busy || _languageBusy || _pending
               ? null
               : () => _pick(controller),
@@ -431,28 +405,24 @@ class _MigrationPageState extends State<MigrationPage> {
       actions: [
         PopupMenuButton<String>(
           key: const ValueKey('language-menu'),
-          tooltip: '${t('Language')} · ${widget.languages.current.name}',
+          tooltip:
+              '${l10n.language} · ${AppLanguages.names[widget.languages.selected]}',
           enabled: !_busy && !_languageBusy,
           icon: const Icon(Icons.language),
           onSelected: _languageAction,
           itemBuilder: (context) => [
-            for (final pack in widget.languages.packs.values)
+            for (final entry in AppLanguages.names.entries)
               CheckedPopupMenuItem(
-                value: 'locale:${pack.locale}',
-                checked: widget.languages.selected == pack.locale,
-                child: Text(pack.name),
+                value: entry.key,
+                checked: widget.languages.selected == entry.key,
+                child: Text(entry.value),
               ),
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              value: 'import',
-              child: Text(t('Import language JSON…')),
-            ),
           ],
         ),
         TextButton.icon(
           onPressed: _busy || _languageBusy ? null : _refresh,
           icon: const Icon(Icons.refresh),
-          label: Text(t('Refresh history')),
+          label: Text(l10n.refreshHistory),
         ),
         const SizedBox(width: 16),
       ],
@@ -464,31 +434,23 @@ class _MigrationPageState extends State<MigrationPage> {
         child: ListView(
           padding: const EdgeInsets.all(28),
           children: [
-            if (widget.languages.loadWarning != null)
+            if (widget.languages.loadWarning)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: Text(t(widget.languages.loadWarning!)),
+                child: Text(l10n.languageSettingsWarning),
               ),
             Text(
-              t('Move the data. Keep the path.'),
+              l10n.heading,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 8),
-            Text(
-              t(
-                'Safely relocate a Windows folder and leave a junction at its original location. Local NTFS drives only.',
-              ),
-            ),
+            Text(l10n.intro),
             const SizedBox(height: 24),
             if (_pending)
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Text(
-                    t(
-                      'An operation needs recovery or cleanup. Resolve it in History before starting another move.',
-                    ),
-                  ),
+                  child: Text(l10n.anOperationNeedsRecoveryOrCleanup),
                 ),
               ),
             Card(
@@ -497,13 +459,9 @@ class _MigrationPageState extends State<MigrationPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _folder(t('Source folder'), _source),
-                    _folder(t('Destination parent folder'), _parent),
-                    Text(
-                      t(
-                        'The destination will contain a folder with the same name. Existing folders are never overwritten.',
-                      ),
-                    ),
+                    _folder(l10n.sourceFolder, _source),
+                    _folder(l10n.destinationParentFolder, _parent),
+                    Text(l10n.theDestinationWillContainAFolder),
                     const SizedBox(height: 20),
                     Wrap(
                       spacing: 12,
@@ -519,7 +477,7 @@ class _MigrationPageState extends State<MigrationPage> {
                               ? null
                               : _check,
                           icon: const Icon(Icons.fact_check_outlined),
-                          label: Text(t('Check folders')),
+                          label: Text(l10n.checkFolders),
                         ),
                         FilledButton.icon(
                           onPressed:
@@ -530,34 +488,30 @@ class _MigrationPageState extends State<MigrationPage> {
                               ? null
                               : _move,
                           icon: const Icon(Icons.drive_file_move_outline),
-                          label: Text(t('Apply move')),
+                          label: Text(l10n.applyMove),
                         ),
                       ],
                     ),
                     if (_review != null) ...[
                       const Divider(height: 32),
                       _detail(
-                        t('Verified destination path'),
+                        l10n.verifiedDestinationPath,
                         _review!['destination'] as String,
                       ),
                       Text(
-                        t('{count} files · {size} of data', {
-                          'count': _review!['files'] as Object,
-                          'size': bytes(_review!['bytes'] as num),
-                        }),
-                      ),
-                      Text(
-                        t('{required} required · {free} available', {
-                          'required': bytes(_review!['required'] as num),
-                          'free': bytes(_review!['free'] as num),
-                        }),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        t(
-                          'Checks passed. Apply move opens a final confirmation. Checks run again before moving data.',
+                        l10n.fileSummary(
+                          _review!['files'] as int,
+                          bytes(_review!['bytes'] as num),
                         ),
                       ),
+                      Text(
+                        l10n.spaceSummary(
+                          bytes(_review!['required'] as num),
+                          bytes(_review!['free'] as num),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(l10n.checksPassedApplyMoveOpensA),
                     ],
                   ],
                 ),
@@ -570,12 +524,14 @@ class _MigrationPageState extends State<MigrationPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        t(
-                          _progress?['phase'] as String? ??
-                              'Checking operation…',
-                        ),
-                      ),
+                      Text(switch (_progress?['phase']) {
+                        'Copying' => l10n.copying,
+                        'Verifying' => l10n.verifying,
+                        'Recovering' => l10n.recovering,
+                        'Switching locations' => l10n.switchingLocations,
+                        'Cleaning up' => l10n.cleaningUp,
+                        _ => l10n.checkingOperation,
+                      }),
                       const SizedBox(height: 12),
                       const LinearProgressIndicator(),
                       if (_progress != null)
@@ -611,8 +567,8 @@ class _MigrationPageState extends State<MigrationPage> {
                                 },
                           child: Text(
                             _cancelRequested
-                                ? t('Cancellation requested…')
-                                : t('Cancel safely'),
+                                ? l10n.cancellationRequested
+                                : l10n.cancelSafely,
                           ),
                         ),
                     ],
@@ -628,28 +584,28 @@ class _MigrationPageState extends State<MigrationPage> {
                   padding: const EdgeInsets.all(20),
                   child: _error
                       ? _diagnostic(_message!)
-                      : SelectableText(t(_message!)),
+                      : SelectableText(switch (_message) {
+                          'Migration verified. The original path now points to the destination.' =>
+                            l10n.migrationVerifiedTheOriginalPathNow,
+                          'Undo verified. Your current data is back at the original location.' =>
+                            l10n.undoVerifiedYourCurrentDataIs,
+                          'Recovery completed. Review the operation details below.' =>
+                            l10n.recoveryCompletedReviewTheOperationDetails,
+                          _ => _message!,
+                        }),
                 ),
               ),
             const SizedBox(height: 28),
             Text(
-              t('History & recovery'),
+              l10n.historyRecovery,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
             if (_history.isEmpty)
-              Text(
-                t(
-                  'Migrations appear here. Interrupted operations can be recovered after restarting FileMover.',
-                ),
-              ),
+              Text(l10n.migrationsAppearHereInterruptedOperationsCan),
             for (final record in _history) _historyCard(record),
             const SizedBox(height: 24),
-            Text(
-              t(
-                'Close applications using the folder. Live databases, system folders, network locations, encrypted files, and folders containing links are unsupported.',
-              ),
-            ),
+            Text(l10n.closeApplicationsUsingTheFolderLive),
           ],
         ),
       ),
@@ -661,11 +617,11 @@ class _MigrationPageState extends State<MigrationPage> {
     final pending = !['complete', 'undone', 'rolledBack'].contains(state);
     final cleanup = ['committed', 'cleanupPending'].contains(state);
     final labels = {
-      'complete': t('Completed'),
-      'undone': t('Undone'),
-      'rolledBack': t('Original location restored'),
-      'committed': t('Verified · cleanup pending'),
-      'cleanupPending': t('Verified · cleanup pending'),
+      'complete': l10n.completed,
+      'undone': l10n.undone,
+      'rolledBack': l10n.originalLocationRestored,
+      'committed': l10n.verifiedCleanupPending,
+      'cleanupPending': l10n.verifiedCleanupPending,
     };
     return Card(
       child: Padding(
@@ -674,31 +630,29 @@ class _MigrationPageState extends State<MigrationPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              t('{operation} · {status}', {
-                'operation': r['direction'] == 'undo'
-                    ? t('Undo')
-                    : t('Migration'),
-                'status': labels[state] ?? t('Recovery required'),
-              }),
+              l10n.operationStatus(
+                r['direction'] == 'undo' ? l10n.undo : l10n.migration,
+                labels[state] ?? l10n.recoveryRequired,
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            _detail(t('Original path'), r['source'] as String),
-            _detail(t('Destination'), r['destination'] as String),
+            _detail(l10n.originalPath, r['source'] as String),
+            _detail(l10n.destination, r['destination'] as String),
             Text(_date(r['started'] as String? ?? '')),
             if ((r['message'] as String? ?? '').isNotEmpty)
               _diagnostic(r['message'] as String),
             if (pending || state == 'rolledBack') ...[
               if (r['backup'] != null)
-                _detail(t('Backup path'), r['backup'] as String),
+                _detail(l10n.backupPath, r['backup'] as String),
               if (r['stage'] != null)
-                _detail(t('Staging path'), r['stage'] as String),
+                _detail(l10n.stagingPath, r['stage'] as String),
             ],
             if (pending)
               FilledButton.tonal(
                 onPressed: _busy ? null : () => _recover(r),
                 child: Text(
-                  cleanup ? t('Retry cleanup') : t('Recover original location'),
+                  cleanup ? l10n.retryCleanup : l10n.recoverOriginalLocation,
                 ),
               ),
             if (r['direction'] == 'move' && state == 'complete')
@@ -706,7 +660,7 @@ class _MigrationPageState extends State<MigrationPage> {
                 onPressed: _busy || _languageBusy || _pending
                     ? null
                     : () => _undo(r),
-                child: Text(t('Undo migration')),
+                child: Text(l10n.undoMigration),
               ),
           ],
         ),

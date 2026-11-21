@@ -32,6 +32,9 @@ dependencies:
   flutter:
     sdk: flutter
   material_ui: ^1.11.0
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
 dev_dependencies:
   flutter_test:
@@ -49,8 +52,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
   assets:
-    - assets/languages/
     - assets/worker.ps1
     - assets/engine.cs
 
